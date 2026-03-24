@@ -3,19 +3,40 @@
 // -------------------------------------
 async function getWaterTemperature() {
   try {
-    const url = "https://www.swt-wc.usace.army.mil/webdata/json/WTTO2.json";
+    const url = "https://www.swt-wc.usace.army.mil/webdata/gagedata/WTTO2.csv";
     const res = await fetch(url);
-    const data = await res.json();
+    const csvText = await res.text();
 
-    // USACE WTTO2 JSON data ends with latest hour entry
-    const latest = data.WTTO2[data.WTTO2.length - 1];
-    const waterTemp = latest["WTR-TEMP"];
+    const lines = csvText.trim().split("\n");
+
+    // Last line = latest data reading
+    const lastLine = lines[lines.length - 1];
+
+    // Split CSV columns by comma
+    const cols = lastLine.split(",");
+
+    // USACE CSV includes water temp under column 'WTR-TEMP'
+    // Typically this is at column index 5 or 6 depending on the station layout.
+    // We search for it dynamically in the header.
+
+    // Parse header row
+    const header = lines[0].split(",");
+    const tempIndex = header.indexOf("WTR-TEMP");
+
+    if (tempIndex === -1) {
+      document.getElementById("waterTemp").textContent = "Temperature not available";
+      console.error("WTR-TEMP column not found:", header);
+      return;
+    }
+
+    const waterTemp = cols[tempIndex];
 
     document.getElementById("waterTemp").textContent =
-      waterTemp !== undefined ? `${waterTemp} °F` : "No data available";
+      waterTemp ? `${waterTemp} °F` : "No data available";
+
   } catch (err) {
     document.getElementById("waterTemp").textContent = "Error loading data";
-    console.error(err);
+    console.error("WTTO2 CSV fetch error:", err);
   }
 }
 
