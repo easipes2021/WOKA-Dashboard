@@ -7,47 +7,36 @@
 async function getWaterTemperature() {
   const display = document.getElementById("waterTemp");
 
-  // 1. Try CSV endpoint (most likely to work)
-  const csvUrl = "https://www.swt-wc.usace.army.mil/webdata/gagedata/WTTO2.csv";
+  const proxyUrl = "https://api.allorigins.win/get?url=" +
+    encodeURIComponent("https://www.swt-wc.usace.army.mil/webdata/gagedata/WTTO2.current.html");
 
   try {
-    const response = await fetch(csvUrl, { mode: "cors" });
+    const res = await fetch(proxyUrl);
 
-    if (!response.ok) {
-      console.error("CSV fetch failed, status:", response.status);
-      throw new Error("CSV request failed");
+    if (!res.ok) {
+      throw new Error("Proxy fetch failed");
     }
 
-    const text = await response.text();
+    const data = await res.json();
+    const html = data.contents;
 
-    // Split lines
-    const lines = text.trim().split("\n");
-    const header = lines[0].split(",");
+    // Extract WTR-TEMP using regex
+    const tempMatch = html.match(/WTR-TEMP.*?([\d.]+)/);
 
-    const tempIndex = header.indexOf("WTR-TEMP");
-    if (tempIndex === -1) {
-      console.error("WTR-TEMP column not found. Header:", header);
-      display.textContent = "No temperature column";
+    if (!tempMatch) {
+      console.error("Temperature not found in HTML");
+      display.textContent = "No data available";
       return;
     }
 
-    const lastLine = lines[lines.length - 1].split(",");
-    const waterTemp = lastLine[tempIndex];
-
-    if (!waterTemp || waterTemp === "---") {
-      display.textContent = "No data available";
-    } else {
-      display.textContent = `${waterTemp} °F`;
-    }
-
-    return;
+    const waterTemp = tempMatch[1];
+    display.textContent = `${waterTemp} °F`;
 
   } catch (err) {
-    console.error("Error fetching USACE CSV:", err);
+    console.error("WTTO2 fetch error:", err);
     display.textContent = "Error loading data";
   }
 }
-``
 
 
 
