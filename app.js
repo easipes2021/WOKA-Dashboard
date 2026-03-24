@@ -25,20 +25,26 @@ async function getWaterTemperature() {
 async function getAirTemperature() {
   const lat = 36.13;
   const lon = -94.57;
-  const apiKey = "YOUR_API_KEY"; // <--- Replace this
 
   try {
-    const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=imperial&appid=${apiKey}`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=36.13&longitude=-94.57&current=temperature_2m&temperature_unit=fahrenheit`;
     const res = await fetch(url);
     const data = await res.json();
 
-    const airTemp = data.main.temp;
-    document.getElementById("airTemp").textContent = `${airTemp} °F`;
+    if (!data.current || data.current.temperature_2m === undefined) {
+      document.getElementById("airTemp").textContent = "No data available";
+      console.error("Open-Meteo missing field:", data);
+      return;
+    }
+
+    const temp = data.current.temperature_2m;
+    document.getElementById("airTemp").textContent = `${temp} °C`;
   } catch (err) {
     document.getElementById("airTemp").textContent = "Error loading data";
-    console.error(err);
+    console.error("Open-Meteo fetch error:", err);
   }
 }
+``
 
 // Auto-run both functions on page load
 getWaterTemperature();
