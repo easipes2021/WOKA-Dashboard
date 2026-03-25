@@ -42,3 +42,8 @@ p {
 .button-link:hover {
   background-color: #005fa3;
 }
+
+#lakeFrancisChart {
+  height: 400px !important;
+  max-height: 400px !important;
+}
