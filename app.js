@@ -141,6 +141,21 @@ async function loadLakeFrancisCurrent() {
   }
 }
 
+
+async function getSiloamStage() {
+  const url = "https://waterservices.usgs.gov/nwis/iv/?format=json&sites=07195430&parameterCd=00065";
+  const resp = await fetch(url);
+  const data = await resp.json();
+  return parseFloat(data.value.timeSeries[0].values[0].value[0].value);
+}
+
+async function updateSiloamCurrentFlow() {
+  const stage = await getSiloamStage(); 
+  const cfs = await getLiveCFS(stage);
+  document.getElementById("siloamCurrent").textContent = `${cfs.toFixed(1)} CFS`;
+}
+
+
 // Illinois River rating curve (07195430)
 // Generated from 2 years of NWIS IV data
 
@@ -187,7 +202,7 @@ async function getLiveCFS(stageFt) {
 
 
 async function loadConvertedHistoric() {
-  const resp = await fetch("https://YOUR-RENDER-APP.onrender.com/historic-converted");
+  const resp = await fetch("https://woka-rating-api.onrender.com/historic-converted");
   const data = await resp.json();
   return data;
 }
@@ -226,13 +241,11 @@ async function drawConvertedGraph() {
 
 
 // -----------------------------------------------------
-// RUN EVERYTHING
-// -----------------------------------------------------
+// ---- Run Everything ----
 getAirTemperature();
 loadLakeFrancisGraph();
 loadLakeFrancisCurrent();
-ratingCurve_CFS();
-getFlowFromPAI();
-getLiveCFS(stageFt);
-loadConvertedHistoric();
+
+// Siloam Springs
+updateSiloamCurrentFlow();
 drawConvertedGraph();
