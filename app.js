@@ -231,4 +231,8 @@ async function drawConvertedGraph() {
 getAirTemperature();
 loadLakeFrancisGraph();
 loadLakeFrancisCurrent();
-
+ratingCurve_CFS();
+getFlowFromPAI();
+getLiveCFS(stageFt);
+loadConvertedHistoric();
+drawConvertedGraph();
