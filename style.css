@@ -49,14 +49,14 @@ p {
   height: 400px;
   max-height: 400px;
   width: 100%;
-  overflow: hidden; /* ✅ Prevents runaway growth */
+  overflow: hidden;
 }
 
+/* ✅ FIXED: missing semicolon + missing brace */
 #lakeFrancisChart {
   height: 100% !important;
-  width: 100% 
-
-
+  width: 100%;
+}
 
 .chart-container {
   position: relative;
