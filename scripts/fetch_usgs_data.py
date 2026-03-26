@@ -3,42 +3,49 @@ import requests
 import json
 from datetime import datetime, timedelta
 
+# -------------------------------
+# CONFIG
+# -------------------------------
 SITE_ID = "07195430"
-PARAMS = ["00060", "00065"]   # discharge + stage
-DAYS_BACK = 730
+PARAMS = "00060,00065"      # discharge + gage height
+DAYS_BACK = 730             # 2 years
 OUTPUT_FILE = "data/usgs_07195430.json"
 
+# -------------------------------
+# DATE RANGE (2 years)
+# -------------------------------
 end_dt = datetime.utcnow()
 start_dt = end_dt - timedelta(days=DAYS_BACK)
 
-start = start_dt.strftime("%Y-%m-%dT%H:%MZ")
-end = end_dt.strftime("%Y-%m-%dT%H:%MZ")
+start = start_dt.strftime("%Y-%m-%d")
+end = end_dt.strftime("%Y-%m-%d")
 
-from urllib.parse import urlencode
+# -------------------------------
+# NWIS INSTANTANEOUS VALUES API
+# -------------------------------
+BASE_URL = "https://waterservices.usgs.gov/nwis/iv/"
 
-API_KEY  = os.environ.get("USGS_API_KEY")
+url = (
+    f"{BASE_URL}?format=json"
+    f"&sites={SITE_ID}"
+    f"&parameterCd={PARAMS}"
+    f"&startDT={start}"
+    f"&endDT={end}"
+)
 
-params = {
-    "sites": SITE_ID,
-    "observedProperty": "00060,00065",
-    "start": start,
-    "end": end,
-    "api-key": API_KEY,
-    "format": "json"
-}
+print("Fetching: " + url)
 
-BASE_URL = "https://api.waterdata.usgs.gov/v3/observations/instantaneous"
-
-full_url = BASE_URL + "?" + urlencode(params)
-
-print("Fetching: " + full_url)
-
-
-resp = requests.get(full_url)
+# -------------------------------
+# FETCH DATA
+# -------------------------------
+resp = requests.get(url)
 resp.raise_for_status()
 
 data = resp.json()
 
+# -------------------------------
+# SAVE OUTPUT
+# -------------------------------
 os.makedirs("data", exist_ok=True)
 with open(OUTPUT_FILE, "w") as f:
     json.dump(data, f, indent=2)
