@@ -177,6 +177,15 @@ async function getFlowFromAPI(stageFt) {
   }
 }
 
+
+async function getLiveCFS(stageFt) {
+  const url = `https://woka-rating-api.onrender.com/flow?stage=${stageFt}`;
+  const resp = await fetch(url);
+  const data = await resp.json();
+  return data.discharge_cfs;
+}
+
+
 // -----------------------------------------------------
 // RUN EVERYTHING
 // -----------------------------------------------------
