@@ -31,7 +31,7 @@ BASE_URL = "https://api.waterdata.usgs.gov/v3/observations/instantaneous"
 
 full_url = BASE_URL + "?" + urlencode(params)
 
-print("Fetching:", full_url)
+print("Fetching: " + full_url)
 
 
 resp = requests.get(full_url)
