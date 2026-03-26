@@ -1,23 +1,11 @@
-// Illinois River rating curve (07195430)
-// Generated from 2 years of NWIS IV data
-
-function ratingCurve_CFS(gageHeightFt) {
-    const H = Number(gageHeightFt);
-    if (!isFinite(H) || H <= 0) return null; // invalid input
-
-    const H_break = 5.416;
-
-    // Low-flow segment
-    const A_low = 20.93;
-    const B_low = 2.040;
-
-    // High-flow segment
-    const A_high = 2.68;
-    const B_high = 3.019;
-
-    if (H <= H_break) {
-        return A_low * Math.pow(H, B_low);
-    } else {
-        return A_high * Math.pow(H, B_high);
-    }
+{
+  "piecewise_breakpoint": 3.19,
+  "low_flow": {
+    "A": 9.12895021632494,
+    "B": 3.34492887542138
+  },
+  "high_flow": {
+    "A": 31.13435006393259,
+    "B": 2.316484039710871
+  }
 }
