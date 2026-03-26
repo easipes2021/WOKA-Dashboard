@@ -165,6 +165,18 @@ function ratingCurve_CFS(gageHeightFt) {
     }
 }
 
+async function getFlowFromAPI(stageFt) {
+  try {
+    const url = `https://woka-rating-api.onrender.com/flow?stage=${stageFt}`;
+    const resp = await fetch(url);
+    const data = await resp.json();
+    return data.discharge_cfs;
+  } catch (err) {
+    console.error("Flow API error:", err);
+    return null;
+  }
+}
+
 // -----------------------------------------------------
 // RUN EVERYTHING
 // -----------------------------------------------------
