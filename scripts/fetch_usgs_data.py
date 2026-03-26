@@ -3,26 +3,26 @@ import requests
 import json
 from datetime import datetime, timedelta
 
-# -------------------------------
-# CONFIG
-# -------------------------------
-SITE_ID = "07195430"
-PARAMS = "00060,00065"      # discharge + gage height
-DAYS_BACK = 730             # 2 years
+# -----------------------------------
+# CONFIGURATION
+# -----------------------------------
+SITE_ID = "07195430"              # Your USGS station
+PARAMS = "00060,00065"            # 00060 = CFS, 00065 = Gage height
+DAYS_BACK = 730                   # 2 years
 OUTPUT_FILE = "data/usgs_07195430.json"
 
-# -------------------------------
-# DATE RANGE (2 years)
-# -------------------------------
+# -----------------------------------
+# BUILD DATE RANGE
+# -----------------------------------
 end_dt = datetime.utcnow()
 start_dt = end_dt - timedelta(days=DAYS_BACK)
 
 start = start_dt.strftime("%Y-%m-%d")
 end = end_dt.strftime("%Y-%m-%d")
 
-# -------------------------------
-# NWIS INSTANTANEOUS VALUES API
-# -------------------------------
+# -----------------------------------
+# WORKING NWIS IV ENDPOINT
+# -----------------------------------
 BASE_URL = "https://waterservices.usgs.gov/nwis/iv/"
 
 url = (
@@ -35,17 +35,17 @@ url = (
 
 print("Fetching: " + url)
 
-# -------------------------------
+# -----------------------------------
 # FETCH DATA
-# -------------------------------
+# -----------------------------------
 resp = requests.get(url)
 resp.raise_for_status()
 
 data = resp.json()
 
-# -------------------------------
+# -----------------------------------
 # SAVE OUTPUT
-# -------------------------------
+# -----------------------------------
 os.makedirs("data", exist_ok=True)
 with open(OUTPUT_FILE, "w") as f:
     json.dump(data, f, indent=2)
