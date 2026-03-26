@@ -14,18 +14,25 @@ start_dt = end_dt - timedelta(days=DAYS_BACK)
 start = start_dt.strftime("%Y-%m-%dT%H:%MZ")
 end = end_dt.strftime("%Y-%m-%dT%H:%MZ")
 
-API_KEY = os.environ.get("USGS_API_KEY")
+from urllib.parse import urlencode
+
+API_KEY  = os.environ.get("USGS_API_KEY")
+
+params = {
+    "sites": SITE_ID,
+    "observedProperty": "00060,00065",
+    "start": start,
+    "end": end,
+    "api-key": API_KEY,
+    "format": "json"
+}
 
 BASE_URL = "https://api.waterdata.usgs.gov/v3/observations/instantaneous"
 
-full_url = (
-    f"{BASE_URL}?sites={SITE_ID}"
-    f"&observedProperty={','.join(PARAMS)}"
-    f"&start={start}&end={end}"
-    f"&api-key={API_KEY}&format=json"
-)
+full_url = BASE_URL + "?" + urlencode(params)
 
 print("Fetching:", full_url)
+
 
 resp = requests.get(full_url)
 resp.raise_for_status()
