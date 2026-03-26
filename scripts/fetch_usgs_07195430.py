@@ -3,64 +3,37 @@ import requests
 import json
 from datetime import datetime, timedelta
 
+SITE_ID = "07195430"
+PARAMS = ["00060", "00065"]   # discharge + stage
+DAYS_BACK = 730
+OUTPUT_FILE = "data/usgs_07195430.json"
+
+end_dt = datetime.utcnow()
+start_dt = end_dt - timedelta(days=DAYS_BACK)
+
+start = start_dt.strftime("%Y-%m-%dT%H:%MZ")
+end = end_dt.strftime("%Y-%m-%dT%H:%MZ")
+
 API_KEY = os.environ.get("USGS_API_KEY")
-SITE = "07195430"
-PARAMS = ["00060", "00065"]  # CFS + Gage Height
 
-# 2 years date range
-end = datetime.utcnow()
-start = end - timedelta(days=730)
+BASE_URL = "https://api.waterdata.usgs.gov/v3/observations/instantaneous"
 
-start_str = start.strftime("%Y-%m-%dT%H:%M:%S")
-end_str = end.strftime("%Y-%m-%dT%H:%M:%S")
+full_url = (
+    f"{BASE_URL}?sites={SITE_ID}"
+    f"&observedProperty={','.join(PARAMS)}"
+    f"&start={start}&end={end}"
+    f"&api-key={API_KEY}&format=json"
+)
 
-def fetch_param(param):
-    url = (
-        f"https://labs.waterdata.usgs.gov/nextgen-service/v2/instantaneous-values"
-        f"?sites={SITE}&parameterCode={param}"
-        f"&startDT={start_str}&endDT={end_str}"
-        f"&api_key={API_KEY}"
-    )
-    response = requests.get(url)
-    response.raise_for_status()
-    return response.json()
+print("Fetching:", full_url)
 
-def merge_data(height_data, discharge_data):
-    height_points = {}
-    for entry in height_data["data"]:
-        ts = entry.get("dateTime")
-        val = entry.get("value")
-        if ts:
-            height_points[ts] = {"height_ft": val}
+resp = requests.get(full_url)
+resp.raise_for_status()
 
-    for entry in discharge_data["data"]:
-        ts = entry.get("dateTime")
-        val = entry.get("value")
-        if ts and ts in height_points:
-            height_points[ts]["cfs"] = val
+data = resp.json()
 
-    merged = [
-        {"timestamp": ts, **vals}
-        for ts, vals in height_points.items()
-        if "cfs" in vals
-    ]
+os.makedirs("data", exist_ok=True)
+with open(OUTPUT_FILE, "w") as f:
+    json.dump(data, f, indent=2)
 
-    return merged
-
-def main():
-    print("Fetching 2 years of stage + discharge for USGS 07195430...")
-    height_json = fetch_param("00065")
-    discharge_json = fetch_param("00060")
-
-    merged = merge_data(height_json, discharge_json)
-
-    os.makedirs("data", exist_ok=True)
-    output_path = "data/07195430.json"
-    with open(output_path, "w") as f:
-        json.dump(merged, f, indent=2)
-
-    print(f"Saved merged dataset: {output_path}")
-    print(f"Total paired measurements: {len(merged)}")
-
-if __name__ == "__main__":
-    main()
+print(f"✅ Saved data to {OUTPUT_FILE}")
