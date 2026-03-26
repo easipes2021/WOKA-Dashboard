@@ -47,3 +47,13 @@ def flow(stage: float):
         "discharge_cfs": round(q, 2),
         "segment_used": "low" if stage <= H_BREAK else "high"
     }
+
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],   # Or restrict to your website domain later
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
