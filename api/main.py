@@ -71,6 +71,7 @@ def historic():
 def historic_converted():
     import pandas as pd
     import os
+    from datetime import timedelta
 
     csv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "paired_stage_flow.csv")
     if not os.path.exists(csv_path):
@@ -78,11 +79,13 @@ def historic_converted():
 
     df = pd.read_csv(csv_path)
 
-    # Parse timestamps + sort properly
+    # Convert timestamps properly
     df["timestamp"] = pd.to_datetime(df["dt"], utc=True)
+
+    # ✅ Sort by timestamp ascending
     df = df.sort_values("timestamp")
 
-    # Apply rating curve to compute converted CFS
+    # ✅ Apply rating curve
     def convert(h):
         if h <= H_BREAK:
             return A_LOW * (h ** B_LOW)
@@ -91,11 +94,13 @@ def historic_converted():
 
     df["converted_cfs"] = df["value_H"].apply(convert)
 
-    # ✅ Filter only real last 7 days
-    seven_days_ago = df["timestamp"].max() - pd.Timedelta(days=7)
-    recent = df[df["timestamp"] >= seven_days_ago]
+    # ✅ Filter REAL last 7 days of data
+    latest_time = df["timestamp"].max()
+    seven_days_ago = latest_time - pd.Timedelta(days=7)
+    df_recent = df[df["timestamp"] >= seven_days_ago]
 
-    return recent[["timestamp", "value_H", "converted_cfs"]].to_dict(orient="records")
+    # ✅ Return only recent values for charting
+    return df_recent[["timestamp", "value_H", "converted_cfs"]].to_dict(orient="records")
 
 
 
