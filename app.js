@@ -216,28 +216,72 @@ async function drawConvertedGraph() {
 
   const ctx = document.getElementById("convertedChart");
 
-  new Chart(ctx, {
+  const convertedChart = new Chart(ctx, {
     type: "line",
     data: {
       labels,
-      datasets: [{
-        label: "Converted Flow (CFS)",
-        data: cfsValues,
-        borderColor: "#0077cc",
-        backgroundColor: "rgba(0, 119, 204, 0.3)",
-        tension: 0.3,
-        pointRadius: 0
-      }]
+      datasets: [
+        {
+          label: "Converted Flow (CFS)",
+          data: cfsValues,
+          borderColor: "#0077cc",
+          backgroundColor: "rgba(0, 119, 204, 0.3)",
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.3
+        }
+      ]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+
+      interaction: {
+        mode: "index",
+        intersect: false
+      },
+
+      plugins: {
+        tooltip: {
+          enabled: true,
+          displayColors: false,
+          bodyFont: { size: 16 },
+          titleFont: { size: 14 }
+        },
+        legend: { display: true }
+      },
+
       scales: {
-        y: { title: { display: true, text: "CFS" } },
-        x: { ticks: { autoSkip: true, maxRotation: 0 } }
+        x: {
+          title: { display: true, text: "Date" },
+          ticks: { autoSkip: true, maxRotation: 0 }
+        },
+        y: {
+          title: { display: true, text: "CFS" }
+        }
       }
     }
   });
+
+  // ✅ Touch + mouse scrub readout (mobile-friendly)
+  const scrub = document.getElementById("convertedScrub");
+
+  function updateConvertedReadout(event) {
+    const pointsAtEvent = convertedChart.getElementsAtEventForMode(
+      event,
+      "index",
+      { intersect: false },
+      true
+    );
+
+    if (pointsAtEvent.length) {
+      const i = pointsAtEvent[0].index;
+      scrub.textContent = `${labels[i]} — ${cfsValues[i].toFixed(0)} CFS`;
+    }
+  }
+
+  ctx.addEventListener("mousemove", updateConvertedReadout);
+  ctx.addEventListener("touchmove", updateConvertedReadout);
 }
 
 
