@@ -211,6 +211,7 @@ async function initApp() {
         await loadLakeFrancisData();
         await loadSSKPData();
         await loadHwy16Data(); // Ensure this function name matches exactly!
+        await loadSavoyData();
     } catch (err) {
         console.error("Initialization error:", err);
     }
