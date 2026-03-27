@@ -1,7 +1,16 @@
 console.log("App.js is running");
 
+// Global chart variables to allow refreshing without canvas errors
+let lakeChartInstance = null;
+let convertedChartInstance = null;
+
+// Helper: Format Time for UI
+function getFormattedTime() {
+  return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
 // -------------------------------------
-// Fetch Air Temperature (Open-Meteo)
+// 1. Fetch Air Temperature
 // -------------------------------------
 async function getAirTemperature() {
   try {
@@ -9,29 +18,40 @@ async function getAirTemperature() {
     const res = await fetch(url);
     const data = await res.json();
 
-    if (!data.current || data.current.temperature_2m === undefined) {
+    if (data.current && data.current.temperature_2m !== undefined) {
+      document.getElementById("airTemp").textContent = `${data.current.temperature_2m} °F`;
+    } else {
       document.getElementById("airTemp").textContent = "No data available";
-      console.error("Open-Meteo missing field:", data);
-      return;
     }
-
-    const temp = data.current.temperature_2m;
-    document.getElementById("airTemp").textContent = `${temp} °F`;
-
   } catch (err) {
-    document.getElementById("airTemp").textContent = "Error loading data";
+    document.getElementById("airTemp").textContent = "Error";
     console.error("Open-Meteo fetch error:", err);
   }
 }
 
 // -----------------------------------------------------
-// LAKE FRANCIS GRAPH (7-DAY)
+// 2. LAKE FRANCIS CURRENT LEVEL
+// -----------------------------------------------------
+async function loadLakeFrancisCurrent() {
+  const url = "https://waterservices.usgs.gov/nwis/iv/?format=json&sites=07195495&parameterCd=00065";
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    const value = data.value.timeSeries[0].values[0].value[0].value;
+
+    document.getElementById("lakeFrancisCurrent").textContent = value + " ft";
+    document.getElementById("lakeFrancisTime").textContent = `Updated: ${getFormattedTime()}`;
+  } catch (err) {
+    console.error("Error loading Lake Francis current level:", err);
+    document.getElementById("lakeFrancisCurrent").textContent = "Error";
+  }
+}
+
+// -----------------------------------------------------
+// 3. LAKE FRANCIS GRAPH (7-DAY)
 // -----------------------------------------------------
 async function loadLakeFrancisGraph() {
-  const url =
-    "https://waterservices.usgs.gov/nwis/iv/?format=json&sites=07195495&parameterCd=00065&period=P7D";
-
-
+  const url = "https://waterservices.usgs.gov/nwis/iv/?format=json&sites=07195495&parameterCd=00065&period=P7D";
   try {
     const res = await fetch(url);
     const data = await res.json();
@@ -43,105 +63,67 @@ async function loadLakeFrancisGraph() {
 
     const labels = values.map((v) => new Date(v.time).toLocaleDateString());
     const heights = values.map((v) => v.height);
-
     const ctx = document.getElementById("lakeFrancisChart");
 
-    const lakeChart = new Chart(ctx, {
+    // Destroy existing chart if it exists (for auto-refresh)
+    if (lakeChartInstance) lakeChartInstance.destroy();
+
+    lakeChartInstance = new Chart(ctx, {
       type: "line",
       data: {
         labels: labels,
-        datasets: [
-          {
-            label: "Gage Height (ft)",
-            data: heights,
-            borderColor: "#0077cc",
-            backgroundColor: "rgba(0, 119, 204, 0.3)",
-            borderWidth: 2,
-            pointRadius: 0,
-            tension: 0.3,
-          },
-        ],
+        datasets: [{
+          label: "Gage Height (ft)",
+          data: heights,
+          borderColor: "#0077cc",
+          backgroundColor: "rgba(0, 119, 204, 0.3)",
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.3,
+        }],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-
-        interaction: {
-          mode: "index",
-          intersect: false,
-        },
-
+        interaction: { mode: "index", intersect: false },
         plugins: {
-          tooltip: {
-            enabled: true,
-            displayColors: false,
-            bodyFont: { size: 16 },
-            titleFont: { size: 14 }
-          },
+          tooltip: { enabled: true, displayColors: false },
           legend: { display: true }
         },
-
         scales: {
-          x: {
-            title: { display: true, text: "Date" },
-            ticks: { autoSkip: true, maxRotation: 0 }
-          },
-          y: {
-            title: { display: true, text: "Feet" }
-          }
+          x: { ticks: { autoSkip: true, maxRotation: 0 } },
+          y: { title: { display: true, text: "Feet" } }
         }
       }
     });
 
-    // ✅ Mobile + desktop scrub readout
     const scrub = document.getElementById("scrubValue");
-
     function updateReadout(event) {
-      const points = lakeChart.getElementsAtEventForMode(
-        event,
-        "index",
-        { intersect: false },
-        true
-      );
-
+      const points = lakeChartInstance.getElementsAtEventForMode(event, "index", { intersect: false }, true);
       if (points.length) {
         const i = points[0].index;
         scrub.textContent = `${labels[i]} — ${heights[i]} ft`;
       }
     }
-
     ctx.addEventListener("mousemove", updateReadout);
     ctx.addEventListener("touchmove", updateReadout);
 
+    document.getElementById("lakeFrancisGraphTime").textContent = `Updated: ${getFormattedTime()}`;
   } catch (err) {
-    console.error("Error loading Lake Francis data:", err);
+    console.error("Error loading Lake Francis Graph:", err);
   }
 }
 
 // -----------------------------------------------------
-// CURRENT LAKE FRANCIS LEVEL
+// 4. SILOAM SPRINGS CURRENT FLOW (With Cache & Fallback)
 // -----------------------------------------------------
-async function loadLakeFrancisCurrent() {
-  const url =
-    "https://waterservices.usgs.gov/nwis/iv/?format=json&sites=07195495&parameterCd=00065";
-
-  try {
-    const res = await fetch(url);
-    const data = await res.json();
-
-    const value =
-      data.value.timeSeries[0].values[0].value[0].value;
-
-    document.getElementById("lakeFrancisCurrent").textContent =
-      value + " ft";
-
-  } catch (err) {
-    console.error("Error loading Lake Francis current level:", err);
-    document.getElementById("lakeFrancisCurrent").textContent =
-      "Error loading data";
-  }
+function ratingCurve_CFS(gageHeightFt) {
+  const H = Number(gageHeightFt);
+  if (!isFinite(H) || H <= 0) return null;
+  const H_break = 5.416;
+  if (H <= H_break) return 20.93 * Math.pow(H, 2.040);
+  return 2.68 * Math.pow(H, 3.019);
 }
-
 
 async function getSiloamStage() {
   const url = "https://waterservices.usgs.gov/nwis/iv/?format=json&sites=07195430&parameterCd=00065";
@@ -150,47 +132,54 @@ async function getSiloamStage() {
   return parseFloat(data.value.timeSeries[0].values[0].value[0].value);
 }
 
-// ... [Keep your chart drawing and setup functions as they are!] ...
+async function getLiveCFS(stageFt) {
+  const url = `https://woka-rating-api.onrender.com/flow?stage=${stageFt}`;
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error("API not responding");
+  const data = await resp.json();
+  return data.discharge_cfs;
+}
 
-// -----------------------------------------------------
-// OPTIMIZED SILOAM FLOW LOGIC (With API Fallback)
-// -----------------------------------------------------
 async function updateSiloamCurrentFlow() {
   const displayEl = document.getElementById("siloamCurrent");
+  const timeEl = document.getElementById("siloamTime");
   
-  // 1. Check for cached data + timestamp
+  // Load from cache to show immediately
   const cachedFlow = localStorage.getItem("siloamLastFlow");
-  const cachedTime = localStorage.getItem("siloamLastTime");
-  const now = Date.now();
-  const isStale = !cachedTime || (now - cachedTime > 15 * 60 * 1000); // 15 mins
-
+  const cachedTime = localStorage.getItem("siloamLastTimeFormatted");
+  
   if (cachedFlow) {
-    // Show old data immediately so the screen isn't blank
-    displayEl.innerHTML = `${cachedFlow} CFS <br><small style="color:orange;">(Refreshing...)</small>`;
+    displayEl.innerHTML = `${cachedFlow} CFS <br><span class="refreshing-text">(Refreshing...)</span>`;
+    timeEl.textContent = `Last seen: ${cachedTime}`;
   } else {
-    // If no cache exists at all, show a loader
-    displayEl.innerHTML = '<div class="spinner"></div> <span style="font-size: 0.8rem;">Waking up server...</span>';
+    displayEl.innerHTML = '<div class="spinner"></div> <br><span class="refreshing-text" style="color:var(--text-muted);">Waking up server...</span>';
   }
 
   try {
     const stage = await getSiloamStage();
-    // This is where the 30-second Render delay happens
-    const cfs = await getLiveCFS(stage);
+    let cfs;
+
+    try {
+      cfs = await getLiveCFS(stage); // Try external API
+    } catch (apiErr) {
+      console.warn("Render API failed/sleeping. Falling back to local math.");
+      cfs = ratingCurve_CFS(stage); // Fallback to local formula
+    }
 
     if (cfs !== null) {
+      const timeNow = getFormattedTime();
       const formattedCFS = cfs.toFixed(1);
       
-      // 2. Update UI with fresh data and clear the "Refreshing" state
-      displayEl.innerHTML = `${formattedCFS} CFS`;
+      displayEl.textContent = `${formattedCFS} CFS`;
+      timeEl.textContent = `Updated: ${timeNow}`;
       
-      // 3. Save to localStorage for next visit
       localStorage.setItem("siloamLastFlow", formattedCFS);
-      localStorage.setItem("siloamLastTime", Date.now());
+      localStorage.setItem("siloamLastTimeFormatted", timeNow);
     }
   } catch (err) {
-    console.error("API Fetch failed:", err);
+    console.error("SSKP Flow Update failed:", err);
     if (cachedFlow) {
-      displayEl.innerHTML = `${cachedFlow} CFS <br><small style="color:red;">(Offline - showing old data)</small>`;
+      displayEl.innerHTML = `${cachedFlow} CFS <br><span class="refreshing-text" style="color:red;">(Offline)</span>`;
     } else {
       displayEl.textContent = "Data Unavailable";
     }
@@ -198,92 +187,26 @@ async function updateSiloamCurrentFlow() {
 }
 
 // -----------------------------------------------------
-// APPLICATION INITIALIZER (Safe & Parallelized)
+// 5. SSKP HISTORIC CONVERTED GRAPH
 // -----------------------------------------------------
-async function initApp() {
-  console.log("Hydrology App Initializing...");
-
-  // Promise.allSettled runs them all at once, but ensures one failure doesn't crash the others!
-  await Promise.allSettled([
-    getAirTemperature(),
-    loadLakeFrancisGraph(),
-    loadLakeFrancisCurrent(),
-    updateSiloamCurrentFlow(),
-    drawConvertedGraph()
-  ]);
-
-  console.log("App ready.");
-}
-
-// Fire it off
-document.addEventListener("DOMContentLoaded", initApp);
-
-
-// Illinois River rating curve (07195430)
-// Generated from 2 years of NWIS IV data
-
-function ratingCurve_CFS(gageHeightFt) {
-    const H = Number(gageHeightFt);
-    if (!isFinite(H) || H <= 0) return null; // invalid input
-
-    const H_break = 5.416;
-
-    // Low-flow segment
-    const A_low = 20.93;
-    const B_low = 2.040;
-
-    // High-flow segment
-    const A_high = 2.68;
-    const B_high = 3.019;
-
-    if (H <= H_break) {
-        return A_low * Math.pow(H, B_low);
-    } else {
-        return A_high * Math.pow(H, B_high);
-    }
-}
-
-async function getFlowFromAPI(stageFt) {
-  try {
-    const url = `https://woka-rating-api.onrender.com/flow?stage=${stageFt}`;
-    const resp = await fetch(url);
-    const data = await resp.json();
-    return data.discharge_cfs;
-  } catch (err) {
-    console.error("Flow API error:", err);
-    return null;
-  }
-}
-
-
-async function getLiveCFS(stageFt) {
-  const url = `https://woka-rating-api.onrender.com/flow?stage=${stageFt}`;
-  const resp = await fetch(url);
-  const data = await resp.json();
-  return data.discharge_cfs;
-}
-
-
-async function loadConvertedHistoric() {
-  const resp = await fetch("https://woka-rating-api.onrender.com/historic-converted");
-  const data = await resp.json();
-  return data;
-}
-
 async function drawConvertedGraph() {
-  const points = await loadConvertedHistoric();
+  try {
+    const resp = await fetch("https://woka-rating-api.onrender.com/historic-converted");
+    if (!resp.ok) throw new Error("Render API offline");
+    const points = await resp.json();
 
-  const labels = points.map(p => new Date(p.timestamp).toLocaleString());
-  const cfsValues = points.map(p => p.converted_cfs);
+    const labels = points.map(p => new Date(p.timestamp).toLocaleString());
+    const cfsValues = points.map(p => p.converted_cfs);
+    const ctx = document.getElementById("convertedChart");
 
-  const ctx = document.getElementById("convertedChart");
+    // Destroy existing chart if it exists (for auto-refresh)
+    if (convertedChartInstance) convertedChartInstance.destroy();
 
-  const convertedChart = new Chart(ctx, {
-    type: "line",
-    data: {
-      labels: labels,
-      datasets: [
-        {
+    convertedChartInstance = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: labels,
+        datasets: [{
           label: "Converted Flow (CFS)",
           data: cfsValues,
           borderColor: "#0077cc",
@@ -291,72 +214,60 @@ async function drawConvertedGraph() {
           borderWidth: 2,
           pointRadius: 0,
           tension: 0.3
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-
-      interaction: {
-        mode: "index",
-        intersect: false
+        }]
       },
-
-      plugins: {
-        tooltip: {
-          enabled: true,
-          displayColors: false,
-          bodyFont: { size: 16 },
-          titleFont: { size: 14 }
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          tooltip: { enabled: true, displayColors: false },
+          legend: { display: true }
         },
-        legend: { display: true }
-      },
-
-      scales: {
-        x: {
-          title: { display: true, text: "Date" },
-          ticks: { autoSkip: true, maxRotation: 0 }
-        },
-        y: {
-          title: { display: true, text: "CFS" }
+        scales: {
+          x: { ticks: { autoSkip: true, maxRotation: 0 } },
+          y: { title: { display: true, text: "CFS" } }
         }
       }
+    });
+
+    const scrub = document.getElementById("convertedScrub");
+    function updateReadout(event) {
+      const pointsAtEvent = convertedChartInstance.getElementsAtEventForMode(event, "index", { intersect: false }, true);
+      if (pointsAtEvent.length) {
+        const i = pointsAtEvent[0].index;
+        scrub.textContent = `${labels[i]} — ${cfsValues[i].toFixed(0)} CFS`;
+      }
     }
-  });
+    ctx.addEventListener("mousemove", updateReadout);
+    ctx.addEventListener("touchmove", updateReadout);
 
-  // ✅ Mobile + desktop scrub readout (ONLY ONE COPY)
-  const scrub = document.getElementById("convertedScrub");
-
-  function updateReadout(event) {
-    const pointsAtEvent = convertedChart.getElementsAtEventForMode(
-      event,
-      "index",
-      { intersect: false },
-      true
-    );
-
-    if (pointsAtEvent.length) {
-      const i = pointsAtEvent[0].index;
-      scrub.textContent = `${labels[i]} — ${cfsValues[i].toFixed(0)} CFS`;
-    }
+    document.getElementById("convertedGraphTime").textContent = `Updated: ${getFormattedTime()}`;
+  } catch (err) {
+    console.error("Historic flow failed to load (API might be asleep).", err);
+    document.getElementById("convertedGraphTime").textContent = "Data load failed.";
   }
-
-  ctx.addEventListener("mousemove", updateReadout);
-  ctx.addEventListener("touchmove", updateReadout);
 }
 
-
-
 // -----------------------------------------------------
-// RUN EVERYTHING
+// APPLICATION INITIALIZER & AUTO-REFRESH
 // -----------------------------------------------------
-getAirTemperature();
-loadLakeFrancisGraph();
-loadLakeFrancisCurrent();
+async function initApp() {
+  console.log("Fetching latest hydrology data...");
+  await Promise.allSettled([
+    getAirTemperature(),
+    loadLakeFrancisGraph(),
+    loadLakeFrancisCurrent(),
+    updateSiloamCurrentFlow(),
+    drawConvertedGraph()
+  ]);
+  console.log("Dashboard updated successfully.");
+}
 
-// Siloam Springs Current Flow
-updateSiloamCurrentFlow();
-
-// Converted Flow Graph
-drawConvertedGraph();
+// 1. Fire immediately on page load
+document.addEventListener("DOMContentLoaded", () => {
+  initApp();
+  
+  // 2. Auto-refresh every 15 minutes (900,000 milliseconds)
+  setInterval(initApp, 15 * 60 * 1000);
+});
