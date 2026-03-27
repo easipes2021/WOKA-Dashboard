@@ -199,14 +199,29 @@ async function updateSiloamCurrentFlow() {
 // 5. SSKP HISTORIC CONVERTED GRAPH
 // -----------------------------------------------------
 async function drawConvertedGraph() {
+    // USGS ID for Illinois River South of Siloam Springs
+    const url = "https://waterservices.usgs.gov/nwis/iv/?format=json&sites=07195430&parameterCd=00065&period=P7D";
+    
     try {
-        const resp = await fetch("https://woka-rating-api.onrender.com/historic-converted");
-        const points = await resp.json();
+        const res = await fetch(url);
+        const data = await res.json();
 
-        const labels = points.map(p => new Date(p.timestamp).toLocaleDateString());
-        const cfsValues = points.map(p => p.converted_cfs);
+        // 1. Get the raw stage data (ft)
+        const rawValues = data.value.timeSeries[0].values[0].value;
+
+        // 2. Map and Convert feet to CFS using your math formula
+        const labels = [];
+        const cfsValues = [];
+
+        rawValues.forEach(v => {
+            const stageFt = parseFloat(v.value);
+            const flowCfs = ratingCurve_CFS(stageFt); // Using your local formula
+            
+            labels.push(new Date(v.dateTime).toLocaleString([], {month:'numeric', day:'numeric', hour:'2-digit'}));
+            cfsValues.push(flowCfs);
+        });
+
         const ctx = document.getElementById("convertedChart");
-
         if (convertedChartInstance) convertedChartInstance.destroy();
 
         convertedChartInstance = new Chart(ctx, {
@@ -214,9 +229,9 @@ async function drawConvertedGraph() {
             data: {
                 labels: labels,
                 datasets: [{
-                    label: "Flow (CFS)",
+                    label: "Calculated Flow (CFS)",
                     data: cfsValues,
-                    borderColor: "#ffa500",
+                    borderColor: "#ffa500", // Orange for SSKP
                     backgroundColor: "rgba(255, 165, 0, 0.2)",
                     borderWidth: 2,
                     pointRadius: 0,
@@ -227,24 +242,17 @@ async function drawConvertedGraph() {
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
-                    x: { ticks: { autoSkip: true, maxRotation: 0 } },
+                    x: { ticks: { autoSkip: true, maxTicksLimit: 10 } },
                     y: { title: { display: true, text: "CFS" } }
                 }
             }
         });
 
-        const scrub = document.getElementById("convertedScrub");
-        ctx.onmousemove = (event) => {
-            const pointsAtEvent = convertedChartInstance.getElementsAtEventForMode(event, "index", { intersect: false }, true);
-            if (pointsAtEvent.length) {
-                const i = pointsAtEvent[0].index;
-                scrub.textContent = `${labels[i]} — ${cfsValues[i].toFixed(0)} CFS`;
-            }
-        };
+        document.getElementById("convertedGraphTime").textContent = `Live Calculated: ${getFormattedTime()}`;
 
-        document.getElementById("convertedGraphTime").textContent = `Updated: ${getFormattedTime()}`;
     } catch (err) {
-        console.error("Historic flow failed:", err);
+        console.error("Manual flow conversion failed:", err);
+        document.getElementById("convertedGraphTime").textContent = "USGS Data Unavailable";
     }
 }
 
