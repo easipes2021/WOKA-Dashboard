@@ -1,4 +1,4 @@
-console.log("App.js is running - Stable USGS Version");
+console.log("App.js is running - Mobile Optimized");
 
 // Global chart variables
 let lakeChartInstance = null;
@@ -32,279 +32,31 @@ if (themeToggle) {
 // 1. AIR TEMPERATURE
 // -------------------------------------
 async function getAirTemperature() {
-    const tempDisplay = document.getElementById("airTemp");
-    const timeDisplay = document.getElementById("airTempTime");
     try {
         const url = "https://api.open-meteo.com/v1/forecast?latitude=36.13&longitude=-94.57&current=temperature_2m&temperature_unit=fahrenheit";
         const res = await fetch(url, { cache: "no-store" });
         const data = await res.json();
         if (data.current) {
-            tempDisplay.textContent = `${data.current.temperature_2m} °F`;
-            if (timeDisplay) timeDisplay.textContent = `Updated: ${getFormattedTime()}`;
+            document.getElementById("airTemp").textContent = `${data.current.temperature_2m} °F`;
+            document.getElementById("airTempTime").textContent = `Updated: ${getFormattedTime()}`;
         }
-    } catch (err) {
-        console.error("Temp error:", err);
-    }
+    } catch (err) { console.error("Temp error:", err); }
 }
 
 // -----------------------------------------------------
-// 2. LAKE FRANCIS CURRENT
-// -----------------------------------------------------
-async function loadLakeFrancisCurrent() {
-    const url = "https://waterservices.usgs.gov/nwis/iv/?format=json&sites=07195495&parameterCd=00065";
-    try {
-        const res = await fetch(url, { cache: "no-store" });
-        const data = await res.json();
-        const latest = data.value.timeSeries[0].values[0].value[0];
-        document.getElementById("lakeFrancisCurrent").textContent = latest.value + " ft";
-        checkDataFreshness(latest.dateTime, "lakeFrancisTime");
-    } catch (err) {
-        console.error("Lake Francis Current error:", err);
-    }
-}
-
-// -----------------------------------------------------
-// 3. LAKE FRANCIS GRAPH (7-DAY)
-// -----------------------------------------------------
-async function loadLakeFrancisGraph() {
-    const url = "https://waterservices.usgs.gov/nwis/iv/?format=json&sites=07195495&parameterCd=00065&period=P7D";
-    try {
-        const res = await fetch(url, { cache: "no-store" });
-        const data = await res.json();
-        const values = data.value.timeSeries[0].values[0].value.map(v => ({
-            time: v.dateTime,
-            height: parseFloat(v.value)
-        }));
-
-        const labels = values.map(v => new Date(v.time).toLocaleDateString([], {month:'numeric', day:'numeric'}));
-        const heights = values.map(v => v.height);
-        
-        const ctx = document.getElementById("lakeFrancisChart");
-        if (lakeChartInstance) lakeChartInstance.destroy();
-        
-        lakeChartInstance = new Chart(ctx, {
-            type: "line",
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: "Gage Height (ft)",
-                    data: heights,
-                    borderColor: "#0077cc",
-                    backgroundColor: "rgba(0, 119, 204, 0.2)",
-                    borderWidth: 2,
-                    pointRadius: 0,
-                    tension: 0.3
-                }]
-            },
-            // ... inside your chart creation code:
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                // This part makes it feel like the USGS mobile scrub
-                interaction: {
-                    mode: 'index',
-                    intersect: false,
-                },
-                plugins: {
-                    tooltip: {
-                        enabled: false // We use your custom #scrubValue text instead
-                    },
-                    legend: {
-                        display: false // Saves vertical space on small screens
-                    }
-                },
-                scales: {
-                    x: { 
-                        ticks: { 
-                            autoSkip: true, 
-                            maxTicksLimit: 6, // Prevents crowded labels on narrow phones
-                            maxRotation: 0 
-                        } 
-                    },
-                    y: { 
-                        beginAtZero: false,
-                        title: { display: true, text: elementId === "lakeFrancisChart" ? "Feet" : "CFS" } 
-                    }
-                },
-                // The "Magic" for mobile scrubbing
-                onHover: (event, chartElement) => {
-                    if (chartElement.length > 0) {
-                        const index = chartElement[0].index;
-                        const label = labels[index];
-                        const value = values[index].height || values[index]; // Handles both ft and cfs
-                        
-                        // Update your custom readout
-                        const readout = document.getElementById(elementId === "lakeFrancisChart" ? "scrubValue" : "convertedScrub");
-                        if (readout) {
-                            readout.textContent = `${label} — ${value.toFixed(2)} ${elementId === "lakeFrancisChart" ? "ft" : "CFS"}`;
-                        }
-                    }
-                }
-            }
-        });
-        document.getElementById("lakeFrancisGraphTime").textContent = `Updated: ${getFormattedTime()}`;
-    } catch (err) {
-        console.error("Lake Francis Graph error:", err);
-    }
-}
-
-// -----------------------------------------------------
-// 4. SSKP FLOW (Two-Year Analysis Math)
+// 2. RATING CURVE MATH (Tuned +1.7%)
 // -----------------------------------------------------
 function ratingCurve_CFS(gageHeightFt) {
     const H = parseFloat(gageHeightFt);
     if (isNaN(H) || H <= 0) return 0;
-
-    // TUNED VALUES (Adjusted +1.7% to match current USGS benchmark)
-    // 20.93 * 1.017 = 21.28
-    // 2.68 * 1.017 = 2.73
-    
-    if (H <= 5.416) {
-        return 21.28 * Math.pow(H, 2.040); 
-    } else {
-        return 2.73 * Math.pow(H, 3.019);
-    }
+    // 21.28 and 2.73 include your 1.7% calibration shift
+    return H <= 5.416 ? (21.28 * Math.pow(H, 2.040)) : (2.73 * Math.pow(H, 3.019));
 }
 
-async function updateSiloamCurrentFlow() {
-    const url = "https://waterservices.usgs.gov/nwis/iv/?format=json&sites=07195430&parameterCd=00065";
+// -----------------------------------------------------
+// 3. LAKE FRANCIS (STAGE)
+// -----------------------------------------------------
+async function loadLakeFrancisData() {
+    const url = "https://waterservices.usgs.gov/nwis/iv/?format=json&sites=07195495&parameterCd=00065&period=P7D";
     try {
-        const resp = await fetch(url, { cache: "no-store" });
-        const data = await resp.json();
-        const latest = data.value.timeSeries[0].values[0].value[0];
-        const stage = parseFloat(latest.value);
-        const cfs = ratingCurve_CFS(stage);
-
-        document.getElementById("siloamCurrent").textContent = `${cfs.toFixed(1)} CFS`;
-        checkDataFreshness(latest.dateTime, "siloamTime");
-    } catch (err) {
-        console.error("SSKP Current error:", err);
-    }
-}
-
-// -----------------------------------------------------
-// 5. SSKP HISTORIC GRAPH
-// -----------------------------------------------------
-async function drawConvertedGraph() {
-    const url = "https://waterservices.usgs.gov/nwis/iv/?format=json&sites=07195430&parameterCd=00065&period=P7D";
-    try {
-        const res = await fetch(url, { cache: "no-store" });
-        const data = await res.json();
-        const rawValues = data.value.timeSeries[0].values[0].value;
-
-        const labels = [];
-        const cfsValues = [];
-
-        rawValues.forEach(v => {
-            const flow = ratingCurve_CFS(v.value);
-            labels.push(new Date(v.dateTime).toLocaleString([], {month:'numeric', day:'numeric', hour:'2-digit'}));
-            cfsValues.push(flow);
-        });
-
-        const ctx = document.getElementById("convertedChart");
-        if (convertedChartInstance) convertedChartInstance.destroy();
-        
-        convertedChartInstance = new Chart(ctx, {
-            type: "line",
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: "Calculated Flow (CFS)",
-                    data: cfsValues,
-                    borderColor: "#ffa500",
-                    backgroundColor: "rgba(255, 165, 0, 0.2)",
-                    borderWidth: 2,
-                    pointRadius: 0,
-                    tension: 0.3
-                }]
-            },
-            // ... inside your chart creation code:
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                // This part makes it feel like the USGS mobile scrub
-                interaction: {
-                    mode: 'index',
-                    intersect: false,
-                },
-                plugins: {
-                    tooltip: {
-                        enabled: false // We use your custom #scrubValue text instead
-                    },
-                    legend: {
-                        display: false // Saves vertical space on small screens
-                    }
-                },
-                scales: {
-                    x: { 
-                        ticks: { 
-                            autoSkip: true, 
-                            maxTicksLimit: 6, // Prevents crowded labels on narrow phones
-                            maxRotation: 0 
-                        } 
-                    },
-                    y: { 
-                        beginAtZero: false,
-                        title: { display: true, text: elementId === "lakeFrancisChart" ? "Feet" : "CFS" } 
-                    }
-                },
-                // The "Magic" for mobile scrubbing
-                onHover: (event, chartElement) => {
-                    if (chartElement.length > 0) {
-                        const index = chartElement[0].index;
-                        const label = labels[index];
-                        const value = values[index].height || values[index]; // Handles both ft and cfs
-                        
-                        // Update your custom readout
-                        const readout = document.getElementById(elementId === "lakeFrancisChart" ? "scrubValue" : "convertedScrub");
-                        if (readout) {
-                            readout.textContent = `${label} — ${value.toFixed(2)} ${elementId === "lakeFrancisChart" ? "ft" : "CFS"}`;
-                        }
-                    }
-                }
-            }
-        });
-        document.getElementById("convertedGraphTime").textContent = `Live Calculated: ${getFormattedTime()}`;
-    } catch (err) {
-        console.error("SSKP Graph error:", err);
-    }
-}
-
-// -----------------------------------------------------
-// FRESHNESS HELPER
-// -----------------------------------------------------
-function checkDataFreshness(dateTimeStr, elementId) {
-    const dataTime = new Date(dateTimeStr);
-    const now = new Date();
-    const diffInMinutes = (now - dataTime) / (1000 * 60);
-    const el = document.getElementById(elementId);
-    if (!el) return;
-
-    if (diffInMinutes > 120) {
-        el.style.color = "#ff4444";
-        el.style.fontWeight = "bold";
-        el.textContent = `DELAYED: ${dataTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-    } else {
-        el.style.color = "";
-        el.style.fontWeight = "normal";
-        el.textContent = `Updated: ${getFormattedTime()}`;
-    }
-}
-
-// -----------------------------------------------------
-// INITIALIZER
-// -----------------------------------------------------
-async function initApp() {
-    await Promise.allSettled([
-        getAirTemperature(),
-        loadLakeFrancisGraph(),
-        loadLakeFrancisCurrent(),
-        updateSiloamCurrentFlow(),
-        drawConvertedGraph()
-    ]);
-}
-
-// Start immediately
-initApp();
-// Refresh every 15 mins
-setInterval(initApp, 15 * 60 * 1000);
+        const res = await fetch(url, { cache: "no-store
