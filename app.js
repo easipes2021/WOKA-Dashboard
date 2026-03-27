@@ -150,11 +150,63 @@ async function getSiloamStage() {
   return parseFloat(data.value.timeSeries[0].values[0].value[0].value);
 }
 
+// ... [Keep your chart drawing and setup functions as they are!] ...
+
+// -----------------------------------------------------
+// OPTIMIZED SILOAM FLOW LOGIC (With API Fallback)
+// -----------------------------------------------------
+
 async function updateSiloamCurrentFlow() {
-  const stage = await getSiloamStage(); 
-  const cfs = await getLiveCFS(stage);
-  document.getElementById("siloamCurrent").textContent = `${cfs.toFixed(1)} CFS`;
+  const displayEl = document.getElementById("siloamCurrent");
+  
+  try {
+    // 1. Get the raw Gage Height from USGS first
+    const stage = await getSiloamStage(); 
+    if (isNaN(stage)) throw new Error("Invalid stage reading from USGS");
+
+    let cfs;
+
+    try {
+      // 2. Try the external Render API first
+      cfs = await getLiveCFS(stage);
+    } catch (apiErr) {
+      console.warn("Render API failed, falling back to local rating curve math:", apiErr);
+      // 3. Fallback to your local algebraic power-law formula!
+      cfs = ratingCurve_CFS(stage);
+    }
+
+    if (cfs !== null) {
+      displayEl.textContent = `${cfs.toFixed(1)} CFS`;
+    } else {
+      displayEl.textContent = "Error calculating flow";
+    }
+
+  } catch (err) {
+    console.error("Failed to update Siloam flow:", err);
+    displayEl.textContent = "Data Unavailable";
+  }
 }
+
+// -----------------------------------------------------
+// APPLICATION INITIALIZER (Safe & Parallelized)
+// -----------------------------------------------------
+async function initApp() {
+  console.log("Hydrology App Initializing...");
+
+  // Promise.allSettled runs them all at once, but ensures one failure doesn't crash the others!
+  await Promise.allSettled([
+    getAirTemperature(),
+    loadLakeFrancisGraph(),
+    loadLakeFrancisCurrent(),
+    updateSiloamCurrentFlow(),
+    drawConvertedGraph()
+  ]);
+
+  console.log("App ready.");
+}
+
+// Fire it off
+document.addEventListener("DOMContentLoaded", initApp);
 
 
 // Illinois River rating curve (07195430)
