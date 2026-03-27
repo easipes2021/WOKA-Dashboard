@@ -86,6 +86,8 @@ async function getAirTemperature() {
     } catch (e) { console.error("Temp Error", e); }
 }
 
+
+
 async function loadLakeFrancisData() {
     try {
         const url = "https://waterservices.usgs.gov/nwis/iv/?format=json&sites=07195495&parameterCd=00065&period=P7D";
@@ -125,6 +127,32 @@ async function loadSSKPData() {
         convertedChartInstance = createMobileChart(document.getElementById("convertedChart").getContext('2d'), labels, flows, "Flow (CFS)", "#ffa500", "convertedChart", "convertedScrub");
         document.getElementById("convertedGraphTime").textContent = `Updated: ${getFormattedTime()}`;
     } catch (e) { console.error("SSKP Error", e); }
+}
+
+// -----------------------------------------------------
+// 9. HWY 16 GAUGE (DIRECT CFS) - USGS-07194807
+// -----------------------------------------------------
+async function loadHwy16Data() {
+    // 07194807 is Hwy 16 | 00060 is Discharge (CFS)
+    const url = "https://waterservices.usgs.gov/nwis/iv/?format=json&sites=07194807&parameterCd=00060";
+    try {
+        const res = await fetch(url, { cache: "no-store" });
+        const data = await res.json();
+        
+        // Safety check to ensure USGS is sending data
+        if (data.value && data.value.timeSeries[0]) {
+            const latest = data.value.timeSeries[0].values[0].value[0];
+            const flowValue = parseFloat(latest.value);
+
+            document.getElementById("hwy16Current").textContent = `${Math.round(flowValue).toLocaleString()} CFS`;
+            checkDataFreshness(latest.dateTime, "hwy16Time");
+        } else {
+            document.getElementById("hwy16Current").textContent = "No Data";
+        }
+    } catch (e) {
+        console.error("Hwy 16 Error:", e);
+        document.getElementById("hwy16Current").textContent = "Offline";
+    }
 }
 
 // 7. Initialization
