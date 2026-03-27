@@ -168,10 +168,25 @@ canvas {
     color: white;
 }
 
-/* Dark mode adjustment */
-body.dark-mode .gauge-link {
-    border-color: #66b3ff;
-    color: #66b3ff;
+/* Dark Mode Variables */
+body.dark-mode {
+    background-color: #121212;
+    color: #e0e0e0;
+}
+
+body.dark-mode .card {
+    background-color: #1e1e1e;
+    border-color: #333;
+    color: #ffffff;
+}
+
+body.dark-mode h2 {
+    color: #bb86fc; /* A nice purple or soft blue for dark mode headers */
+}
+
+/* Ensure charts stay visible (Grid lines) */
+body.dark-mode .chart-container {
+    filter: invert(0.05) hue-rotate(180deg) brightness(1.5); /* Optional: auto-adjusts chart colors */
 }
 
 .trend-arrow {
