@@ -41,6 +41,7 @@ async function getAirTemperature() {
     const tempDisplay = document.getElementById("airTemp");
     const timeDisplay = document.getElementById("airTempTime");
     try {
+        // Correct URL structure: ? then &
         const url = `https://api.open-meteo.com/v1/forecast?latitude=36.13&longitude=-94.57&current=temperature_2m&temperature_unit=fahrenheit&_cb=${Date.now()}`;
         const res = await fetch(url);
         const data = await res.json();
@@ -128,17 +129,17 @@ async function loadLakeFrancisGraph() {
 }
 
 // -----------------------------------------------------
-// 4. SILOAM SPRINGS CURRENT FLOW (With Fallback)
+// 4. SILOAM SPRINGS CURRENT FLOW (Local Math)
 // -----------------------------------------------------
 function ratingCurve_CFS(gageHeightFt) {
     const H = Number(gageHeightFt);
-    if (!isFinite(H) || H <= 0) return null;
-    return H <= 5.416 ? 20.93 * Math.pow(H, 2.040) : 2.68 * Math.pow(H, 3.019);
+    if (!isFinite(H) || H <= 0) return 0;
+    // Your 2-year analysis formula
+    return H <= 5.416 ? (20.93 * Math.pow(H, 2.040)) : (2.68 * Math.pow(H, 3.019));
 }
 
 async function updateSiloamCurrentFlow() {
     const displayEl = document.getElementById("siloamCurrent");
-    const timeEl = document.getElementById("siloamTime");
     const url = `https://waterservices.usgs.gov/nwis/iv/?format=json&sites=07195430&parameterCd=00065&_cb=${Date.now()}`;
 
     try {
@@ -147,13 +148,11 @@ async function updateSiloamCurrentFlow() {
         const latest = data.value.timeSeries[0].values[0].value[0];
         const stage = parseFloat(latest.value);
 
-        let cfs = ratingCurve_CFS(stage);
+        const cfs = ratingCurve_CFS(stage);
 
         if (cfs !== null) {
             displayEl.textContent = `${cfs.toFixed(1)} CFS`;
             checkDataFreshness(latest.dateTime, "siloamTime");
-            localStorage.setItem("siloamLastFlow", cfs.toFixed(1));
-            localStorage.setItem("siloamLastTimeFormatted", getFormattedTime());
         }
     } catch (err) {
         console.error("SSKP Flow Update failed:", err);
@@ -175,6 +174,7 @@ async function drawConvertedGraph() {
 
         rawValues.forEach(v => {
             const flowCfs = ratingCurve_CFS(parseFloat(v.value));
+            // Format labels to be readable on mobile
             labels.push(new Date(v.dateTime).toLocaleString([], {month:'numeric', day:'numeric', hour:'2-digit'}));
             cfsValues.push(flowCfs);
         });
@@ -211,7 +211,7 @@ async function drawConvertedGraph() {
 }
 
 // -----------------------------------------------------
-// FRESHNESS HELPER
+// FRESHNESS HELPER (Turns Red if > 2 hours old)
 // -----------------------------------------------------
 function checkDataFreshness(dateTimeStr, elementId) {
     const dataTime = new Date(dateTimeStr);
@@ -221,7 +221,7 @@ function checkDataFreshness(dateTimeStr, elementId) {
     if (!el) return;
 
     if (diffInMinutes > 120) {
-        el.style.color = "red";
+        el.style.color = "#ff4444";
         el.style.fontWeight = "bold";
         el.textContent = `DELAYED: ${dataTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
     } else {
@@ -235,6 +235,7 @@ function checkDataFreshness(dateTimeStr, elementId) {
 // INITIALIZER
 // -----------------------------------------------------
 async function initApp() {
+    // Run all fetches at once
     await Promise.allSettled([
         getAirTemperature(),
         loadLakeFrancisGraph(),
@@ -244,7 +245,8 @@ async function initApp() {
     ]);
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-    initApp();
-    setInterval(initApp, 15 * 60 * 1000);
-});
+// This kicks everything off
+initApp();
+
+// Refresh every 15 minutes automatically
+setInterval(initApp, 15 * 60 * 1000);
