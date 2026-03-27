@@ -166,18 +166,24 @@ async function loadSavoyData() {
         const res = await fetch(url, { cache: "no-store" });
         const data = await res.json();
         
-        if (data.value && data.value.timeSeries[0] && data.value.timeSeries[0].values[0].value.length > 0) {
+        // This is the "Safety Gate": It checks if the USGS actually sent a value
+        if (data.value && 
+            data.value.timeSeries[0] && 
+            data.value.timeSeries[0].values[0].value.length > 0) {
+            
             const latest = data.value.timeSeries[0].values[0].value[0];
             const flowValue = parseFloat(latest.value);
 
-            document.getElementById("savoyCurrent").textContent = `${Math.round(flowValue).toLocaleString()} CFS`;
+            safeUpdateText("savoyCurrent", `${Math.round(flowValue).toLocaleString()} CFS`);
             checkDataFreshness(latest.dateTime, "savoyTime");
         } else {
-            document.getElementById("savoyCurrent").textContent = "No Data";
+            // If the USGS sends a blank response, we handle it gracefully
+            safeUpdateText("savoyCurrent", "No Recent Data");
+            safeUpdateText("savoyTime", "Station Reporting Gap");
         }
-    } catch (e) {
-        console.error("Savoy Gauge Error:", e);
-        document.getElementById("savoyCurrent").textContent = "Offline";
+    } catch (e) { 
+        console.error("Savoy Fetch Error:", e);
+        safeUpdateText("savoyCurrent", "Offline");
     }
 }
 
