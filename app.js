@@ -96,12 +96,49 @@ async function loadLakeFrancisGraph() {
                     tension: 0.3
                 }]
             },
+            // ... inside your chart creation code:
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                // This part makes it feel like the USGS mobile scrub
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    tooltip: {
+                        enabled: false // We use your custom #scrubValue text instead
+                    },
+                    legend: {
+                        display: false // Saves vertical space on small screens
+                    }
+                },
                 scales: {
-                    x: { ticks: { autoSkip: true, maxRotation: 0 } },
-                    y: { title: { display: true, text: "Feet" } }
+                    x: { 
+                        ticks: { 
+                            autoSkip: true, 
+                            maxTicksLimit: 6, // Prevents crowded labels on narrow phones
+                            maxRotation: 0 
+                        } 
+                    },
+                    y: { 
+                        beginAtZero: false,
+                        title: { display: true, text: elementId === "lakeFrancisChart" ? "Feet" : "CFS" } 
+                    }
+                },
+                // The "Magic" for mobile scrubbing
+                onHover: (event, chartElement) => {
+                    if (chartElement.length > 0) {
+                        const index = chartElement[0].index;
+                        const label = labels[index];
+                        const value = values[index].height || values[index]; // Handles both ft and cfs
+                        
+                        // Update your custom readout
+                        const readout = document.getElementById(elementId === "lakeFrancisChart" ? "scrubValue" : "convertedScrub");
+                        if (readout) {
+                            readout.textContent = `${label} — ${value.toFixed(2)} ${elementId === "lakeFrancisChart" ? "ft" : "CFS"}`;
+                        }
+                    }
                 }
             }
         });
@@ -181,12 +218,49 @@ async function drawConvertedGraph() {
                     tension: 0.3
                 }]
             },
+            // ... inside your chart creation code:
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                // This part makes it feel like the USGS mobile scrub
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    tooltip: {
+                        enabled: false // We use your custom #scrubValue text instead
+                    },
+                    legend: {
+                        display: false // Saves vertical space on small screens
+                    }
+                },
                 scales: {
-                    x: { ticks: { autoSkip: true, maxTicksLimit: 10 } },
-                    y: { title: { display: true, text: "CFS" } }
+                    x: { 
+                        ticks: { 
+                            autoSkip: true, 
+                            maxTicksLimit: 6, // Prevents crowded labels on narrow phones
+                            maxRotation: 0 
+                        } 
+                    },
+                    y: { 
+                        beginAtZero: false,
+                        title: { display: true, text: elementId === "lakeFrancisChart" ? "Feet" : "CFS" } 
+                    }
+                },
+                // The "Magic" for mobile scrubbing
+                onHover: (event, chartElement) => {
+                    if (chartElement.length > 0) {
+                        const index = chartElement[0].index;
+                        const label = labels[index];
+                        const value = values[index].height || values[index]; // Handles both ft and cfs
+                        
+                        // Update your custom readout
+                        const readout = document.getElementById(elementId === "lakeFrancisChart" ? "scrubValue" : "convertedScrub");
+                        if (readout) {
+                            readout.textContent = `${label} — ${value.toFixed(2)} ${elementId === "lakeFrancisChart" ? "ft" : "CFS"}`;
+                        }
+                    }
                 }
             }
         });
