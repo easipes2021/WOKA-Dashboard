@@ -118,8 +118,19 @@ async function getAirTemperature() {
     try {
         const res = await fetch("https://api.open-meteo.com/v1/forecast?latitude=36.13&longitude=-94.57&current=temperature_2m&temperature_unit=fahrenheit");
         const data = await res.json();
+        
+        // Update the temperature value
         document.getElementById("airTemp").textContent = `${data.current.temperature_2m} °F`;
-    } catch (e) { console.error("Air Temp Fail", e); }
+        
+        // FIX: Added the timestamp update for Air Temp
+        const timeEl = document.getElementById("airTempTime");
+        if (timeEl) {
+            timeEl.textContent = `Updated: ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+        }
+    } catch (e) { 
+        console.error("Air Temp Fail", e); 
+        document.getElementById("airTemp").textContent = "Offline";
+    }
 }
 
 async function loadWaterTempData() {
