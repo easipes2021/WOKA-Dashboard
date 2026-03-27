@@ -117,8 +117,16 @@ async function loadLakeFrancisGraph() {
 function ratingCurve_CFS(gageHeightFt) {
     const H = parseFloat(gageHeightFt);
     if (isNaN(H) || H <= 0) return 0;
-    // Breakpoint: 5.416 ft
-    return H <= 5.416 ? (20.93 * Math.pow(H, 2.040)) : (2.68 * Math.pow(H, 3.019));
+
+    // TUNED VALUES (Adjusted +1.7% to match current USGS benchmark)
+    // 20.93 * 1.017 = 21.28
+    // 2.68 * 1.017 = 2.73
+    
+    if (H <= 5.416) {
+        return 21.28 * Math.pow(H, 2.040); 
+    } else {
+        return 2.73 * Math.pow(H, 3.019);
+    }
 }
 
 async function updateSiloamCurrentFlow() {
