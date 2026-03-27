@@ -13,19 +13,31 @@ function getFormattedTime() {
 // 1. Fetch Air Temperature
 // -------------------------------------
 async function getAirTemperature() {
+  const tempDisplay = document.getElementById("airTemp");
+  const timeDisplay = document.getElementById("airTempTime"); // Matches HTML exactly
+
   try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=36.13&longitude=-94.57&current=temperature_2m&temperature_unit=fahrenheit`;
     const res = await fetch(url);
     const data = await res.json();
-
-    if (data.current && data.current.temperature_2m !== undefined) {
-      document.getElementById("airTemp").textContent = `${data.current.temperature_2m} °F`;
-    } else {
-      document.getElementById("airTemp").textContent = "No data available";
+    
+    if (data.current) {
+      // Update the Temperature
+      tempDisplay.textContent = `${data.current.temperature_2m} °F`;
+      
+      // Update the Timestamp
+      if (timeDisplay) {
+        const now = getFormattedTime();
+        timeDisplay.textContent = `Updated: ${now}`;
+        console.log("Air Temp Timestamp Updated to:", now); // Debugging line
+      } else {
+        console.error("Could not find element with ID 'airTempTime'");
+      }
     }
   } catch (err) {
-    document.getElementById("airTemp").textContent = "Error";
-    console.error("Open-Meteo fetch error:", err);
+    console.error("Temp fetch error:", err);
+    tempDisplay.textContent = "Error";
+    if (timeDisplay) timeDisplay.textContent = "Check Connection";
   }
 }
 
