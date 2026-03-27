@@ -163,29 +163,34 @@ async function loadHwy16Data() {
 // 10. Illinois River near Savay Gauge
 // -----------------------------------------------------
 async function loadSavoyData() {
-    // 07194800 = Savoy | 00060 = CFS
     const url = "https://waterservices.usgs.gov/nwis/iv/?format=json&sites=07194800&parameterCd=00060";
-    
     try {
         const res = await fetch(url, { cache: "no-store" });
         const data = await res.json();
         
-        // LOGGING: This helps us see if the USGS is actually sending a value
-        console.log("Savoy Raw Data:", data);
-
-        // Direct path to the latest value
-        const val = data.value.timeSeries[0].values[0].value[0];
+        // This path matches your JSON output exactly:
+        // timeSeries[0] -> values[0] -> value[0] -> .value
+        const timeSeries = data.value.timeSeries[0];
+        const latestEntry = timeSeries.values[0].value[0];
         
-        if (val && val.value) {
-            const flow = Math.round(parseFloat(val.value));
-            document.getElementById("savoyCurrent").textContent = `${flow.toLocaleString()} CFS`;
-            checkDataFreshness(val.dateTime, "savoyTime");
-        } else {
-            document.getElementById("savoyCurrent").textContent = "Data Gap";
+        if (latestEntry && latestEntry.value) {
+            const flowValue = parseFloat(latestEntry.value);
+            
+            // 1. Update the Big Number
+            const displayEl = document.getElementById("savoyCurrent");
+            if (displayEl) {
+                displayEl.textContent = `${Math.round(flowValue).toLocaleString()} CFS`;
+            }
+
+            // 2. Update the Timestamp using your existing freshness checker
+            checkDataFreshness(latestEntry.dateTime, "savoyTime");
+            
+            console.log("Savoy successfully updated:", flowValue);
         }
     } catch (e) {
-        console.error("Savoy API Error:", e);
-        document.getElementById("savoyCurrent").textContent = "API Error";
+        console.error("Savoy Access Error:", e);
+        const errEl = document.getElementById("savoyCurrent");
+        if (errEl) errEl.textContent = "Data Error";
     }
 }
 
