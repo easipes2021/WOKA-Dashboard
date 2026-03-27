@@ -103,6 +103,38 @@ async function getAirTemperature() {
     } catch (e) { console.error("Temp Error", e); }
 }
 
+async function loadWaterTempData() {
+    // 07195500 = Watts | 00010 = Water Temp (C) | period=PT2H for trend
+    const url = "https://waterservices.usgs.gov/nwis/iv/?format=json&sites=07195500&parameterCd=00010&period=PT2H";
+    try {
+        const res = await fetch(url, { cache: "no-store" });
+        const data = await res.json();
+        const values = data.value.timeSeries[0].values[0].value;
+        
+        if (values.length >= 2) {
+            // Convert C to F: (C * 9/5) + 32
+            const currentC = parseFloat(values[values.length - 1].value);
+            const previousC = parseFloat(values[values.length - 2].value);
+            
+            const currentF = (currentC * 9/5) + 32;
+            const previousF = (previousC * 9/5) + 32;
+            
+            const trend = getTrendHTML(currentF, previousF);
+
+            // Display with one decimal point
+            document.getElementById("waterTempCurrent").innerHTML = 
+                `${currentF.toFixed(1)} °F ${trend}`;
+            
+            checkDataFreshness(values[values.length - 1].dateTime, "waterTempTime");
+        } else {
+            document.getElementById("waterTempCurrent").textContent = "No Data";
+        }
+    } catch (e) {
+        console.error("Water Temp Error:", e);
+        document.getElementById("waterTempCurrent").textContent = "Offline";
+    }
+}
+
 
 
 async function loadLakeFrancisData() {
