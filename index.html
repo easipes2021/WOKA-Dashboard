@@ -1,69 +1,146 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>WOKA Dashboard</title>
-  <link rel="stylesheet" href="style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="app.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WOKA Streamflow Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-blue: #0077cc;
+            --bg-gray: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-main: #333;
+            --text-muted: #666;
+            --accent-orange: #ffa500;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-gray);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .chart-container {
+            width: 100%;
+            height: 250px;
+            margin-top: 15px;
+            position: relative; /* Needed for Chart.js responsiveness */
+        }
+
+        h2 { margin: 0 0 10px 0; font-size: 1.2rem; color: var(--primary-blue); }
+        .big-number { 
+            font-size: 2.5rem; 
+            font-weight: bold; 
+            margin: 10px 0; 
+            min-height: 50px; /* Prevents jumping during load */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .timestamp {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-style: italic;
+            margin-top: 5px;
+        }
+
+        .scrub-readout {
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: var(--primary-blue);
+            min-height: 1.2em;
+            margin-top: 5px;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0, 119, 204, 0.2);
+            border-top: 3px solid var(--primary-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 5px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .refreshing-text {
+            font-size: 0.7rem;
+            color: var(--accent-orange);
+            font-weight: bold;
+            text-transform: uppercase;
+            display: block;
+            margin-top: 5px;
+        }
+    </style>
 </head>
-
 <body>
-  <h1>WOKA Dashboard</h1>
 
-  <section class="card">
-  <h2>Water Temperature</h2>
-  <a 
-    href="https://waterdata.usgs.gov/monitoring-location/USGS-07195500/#dataTypeId=continuous-00010-0&period=P7D&showFieldMeasurements=true&showMedian=true" 
-    target="_blank" 
-    class="button-link"
-  >
-    View Live USGS Water Temp
-  </a>
-</section>
+    <h1 style="text-align:center;">Illinois River Hydrology Dashboard</h1>
+    <p style="text-align:center; font-weight:bold;">Air Temp: <span id="airTemp">--</span></p>
 
-  <section class="card">
-    <h2>Air Temperature (Watts, OK)</h2>
-    <p id="airTemp">Loading...</p>
-  </section>
+    <div class="dashboard-grid">
+        
+        <div class="card">
+            <h2>Lake Francis Stage</h2>
+            <div id="lakeFrancisCurrent" class="big-number">-- ft</div>
+            <div id="lakeFrancisTime" class="timestamp">Updated: --:--</div>
+        </div>
 
-  
+        <div class="card">
+            <h2>SSKP Flow Prediction</h2>
+            <div id="siloamCurrent" class="big-number">-- CFS</div>
+            <div id="siloamTime" class="timestamp">Updated: --:--</div>
+        </div>
+
+        <div class="card" style="grid-column: 1 / -1;">
+            <h2>Lake Francis (7-Day)</h2>
+            <div id="scrubValue" class="scrub-readout">Hover to explore</div>
+            <div class="chart-container">
+                <canvas id="lakeFrancisChart"></canvas>
+            </div>
+            <div id="lakeFrancisGraphTime" class="timestamp">Updated: --:--</div>
+        </div>
+
+        <div class="card" style="grid-column: 1 / -1;">
+            <h2>SSKP Historic Flow</h2>
+            <div id="convertedScrub" class="scrub-readout">Hover to explore</div>
+            <div class="chart-container">
+                <canvas id="convertedChart"></canvas>
+            </div>
+            <div id="convertedGraphTime" class="timestamp">Updated: --:--</div>
+        </div>
+
+    </div>
+
+    <script src="app.js"></script>
 </body>
 </html>
-
-
-</section>
-<section class="card">
-  <h2>Current Lake Frances Water Level</h2>
-  <p id="lakeFrancisCurrent">Loading...</p>
-</section>
-
-
-<section class="card">
-  <h2>Lake Frances Water Level (Past 7 Days)</h2>
-
-  <div class="chart-container">
-    <canvas id="lakeFrancisChart"></canvas>
-  </div>
-
-  <p id="scrubValue"
-     style="font-size:1.3rem; text-align:center; font-weight:bold; margin-top:10px;">
-    Tap and drag on the chart to view levels.
-  </p>
-</section>
-
-
-<div class="card">
-  <h2>SSKP Current Flow (CFS)</h2>
-  <p id="siloamCurrent">Loading...</p>
-</div>
-
-
-<div class="card">
-  <h2>SSKP – 7‑Day Converted Flow (CFS)</h2>
-  <div class="chart-container">
-    <canvas id="convertedChart"></canvas>
-  </div>
-  <p id="convertedScrub">Hover or drag to inspect</p>
-</div>
