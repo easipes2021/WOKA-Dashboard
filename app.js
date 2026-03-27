@@ -129,28 +129,30 @@ async function loadSSKPData() {
     } catch (e) { console.error("SSKP Error", e); }
 }
 
+
 // -----------------------------------------------------
-// 9. HWY 16 GAUGE (DIRECT CFS) - USGS-07194807
+// 9. HWY 16 GAUGE (DIRECT CFS) - USGS-07195400
 // -----------------------------------------------------
 async function loadHwy16Data() {
-    // 07194807 is Hwy 16 | 00060 is Discharge (CFS)
-    const url = "https://waterservices.usgs.gov/nwis/iv/?format=json&sites=07194807&parameterCd=00060";
+    // 07195400 is Hwy 16 | 00060 is Direct Discharge (CFS)
+    const url = "https://waterservices.usgs.gov/nwis/iv/?format=json&sites=07195400&parameterCd=00060";
     try {
         const res = await fetch(url, { cache: "no-store" });
         const data = await res.json();
         
-        // Safety check to ensure USGS is sending data
-        if (data.value && data.value.timeSeries[0]) {
+        // USGS JSON structures are deep; this safely navigates to the value
+        if (data.value && data.value.timeSeries[0] && data.value.timeSeries[0].values[0].value.length > 0) {
             const latest = data.value.timeSeries[0].values[0].value[0];
             const flowValue = parseFloat(latest.value);
 
+            // Using toLocaleString() adds commas (e.g., 1,200 CFS) for better readability
             document.getElementById("hwy16Current").textContent = `${Math.round(flowValue).toLocaleString()} CFS`;
             checkDataFreshness(latest.dateTime, "hwy16Time");
         } else {
-            document.getElementById("hwy16Current").textContent = "No Data";
+            document.getElementById("hwy16Current").textContent = "Data Gap";
         }
     } catch (e) {
-        console.error("Hwy 16 Error:", e);
+        console.error("Hwy 16 Direct Pull Error:", e);
         document.getElementById("hwy16Current").textContent = "Offline";
     }
 }
