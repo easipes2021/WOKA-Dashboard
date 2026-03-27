@@ -157,6 +157,31 @@ async function loadHwy16Data() {
     }
 }
 
+// -----------------------------------------------------
+// 10. SAVOY, AR GAUGE (DIRECT CFS) - USGS-07194800
+// -----------------------------------------------------
+async function loadSavoyData() {
+    const url = "https://waterservices.usgs.gov/nwis/iv/?format=json&sites=07194800&parameterCd=00060";
+    try {
+        const res = await fetch(url, { cache: "no-store" });
+        const data = await res.json();
+        
+        if (data.value && data.value.timeSeries[0] && data.value.timeSeries[0].values[0].value.length > 0) {
+            const latest = data.value.timeSeries[0].values[0].value[0];
+            const flowValue = parseFloat(latest.value);
+
+            document.getElementById("savoyCurrent").textContent = `${Math.round(flowValue).toLocaleString()} CFS`;
+            checkDataFreshness(latest.dateTime, "savoyTime");
+        } else {
+            document.getElementById("savoyCurrent").textContent = "No Data";
+        }
+    } catch (e) {
+        console.error("Savoy Gauge Error:", e);
+        document.getElementById("savoyCurrent").textContent = "Offline";
+    }
+}
+
+
 // 7. Initialization
 async function initApp() {
     console.log("Starting data fetch...");
