@@ -155,35 +155,45 @@ async function getSiloamStage() {
 // -----------------------------------------------------
 // OPTIMIZED SILOAM FLOW LOGIC (With API Fallback)
 // -----------------------------------------------------
-
 async function updateSiloamCurrentFlow() {
   const displayEl = document.getElementById("siloamCurrent");
   
+  // 1. Check for cached data + timestamp
+  const cachedFlow = localStorage.getItem("siloamLastFlow");
+  const cachedTime = localStorage.getItem("siloamLastTime");
+  const now = Date.now();
+  const isStale = !cachedTime || (now - cachedTime > 15 * 60 * 1000); // 15 mins
+
+  if (cachedFlow) {
+    // Show old data immediately so the screen isn't blank
+    displayEl.innerHTML = `${cachedFlow} CFS <br><small style="color:orange;">(Refreshing...)</small>`;
+  } else {
+    // If no cache exists at all, show a loader
+    displayEl.innerHTML = '<div class="spinner"></div> <span style="font-size: 0.8rem;">Waking up server...</span>';
+  }
+
   try {
-    // 1. Get the raw Gage Height from USGS first
-    const stage = await getSiloamStage(); 
-    if (isNaN(stage)) throw new Error("Invalid stage reading from USGS");
-
-    let cfs;
-
-    try {
-      // 2. Try the external Render API first
-      cfs = await getLiveCFS(stage);
-    } catch (apiErr) {
-      console.warn("Render API failed, falling back to local rating curve math:", apiErr);
-      // 3. Fallback to your local algebraic power-law formula!
-      cfs = ratingCurve_CFS(stage);
-    }
+    const stage = await getSiloamStage();
+    // This is where the 30-second Render delay happens
+    const cfs = await getLiveCFS(stage);
 
     if (cfs !== null) {
-      displayEl.textContent = `${cfs.toFixed(1)} CFS`;
-    } else {
-      displayEl.textContent = "Error calculating flow";
+      const formattedCFS = cfs.toFixed(1);
+      
+      // 2. Update UI with fresh data and clear the "Refreshing" state
+      displayEl.innerHTML = `${formattedCFS} CFS`;
+      
+      // 3. Save to localStorage for next visit
+      localStorage.setItem("siloamLastFlow", formattedCFS);
+      localStorage.setItem("siloamLastTime", Date.now());
     }
-
   } catch (err) {
-    console.error("Failed to update Siloam flow:", err);
-    displayEl.textContent = "Data Unavailable";
+    console.error("API Fetch failed:", err);
+    if (cachedFlow) {
+      displayEl.innerHTML = `${cachedFlow} CFS <br><small style="color:red;">(Offline - showing old data)</small>`;
+    } else {
+      displayEl.textContent = "Data Unavailable";
+    }
   }
 }
 
