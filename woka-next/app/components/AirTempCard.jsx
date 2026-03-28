@@ -9,20 +9,26 @@ export default function AirTempCard() {
   useEffect(() => {
     async function fetchAirTemp() {
       try {
-        const res = await fetch(
-          "https://api.open-meteo.com/v1/forecast?latitude=36.13&longitude=-94.57&current=temperature_2m&temperature_unit=fahrenheit"
-        );
+        const url =
+          "https://api.open-meteo.com/v1/forecast?latitude=36.13&longitude=-94.57&current=temperature_2m&temperature_unit=fahrenheit";
 
+        const res = await fetch(url);
         const data = await res.json();
 
-        if (data?.current?.temperature_2m !== undefined) {
-          setTempF(data.current.temperature_2m);
+        console.log("Air Temp API Response:", data);
+
+        const temp = data?.current?.temperature_2m;
+
+        if (temp !== undefined) {
+          setTempF(temp);
           setTimestamp(
             new Date().toLocaleTimeString([], {
               hour: "2-digit",
               minute: "2-digit"
             })
           );
+        } else {
+          setTempF("No Data");
         }
       } catch (err) {
         console.error("Air Temperature API Error", err);
@@ -32,7 +38,6 @@ export default function AirTempCard() {
 
     fetchAirTemp();
     const interval = setInterval(fetchAirTemp, 15 * 60 * 1000);
-
     return () => clearInterval(interval);
   }, []);
 
