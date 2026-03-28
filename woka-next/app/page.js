@@ -1,21 +1,15 @@
 "use client";
 
-import { useEffect } from "react";
+import AirTempCard from "./components/AirTempCard";
 
 export default function Home() {
-  useEffect(() => {
-    console.log("Dashboard mounted in Next.js");
-  }, []);
-
   return (
-    <main style={{ padding: "20px" }}>
-      <h1>WOKA Dashboard (Next.js Version)</h1>
+    <main>
+      <h1 style={{ textAlign: "center" }}>WOKA Dashboard (Next.js)</h1>
 
-      <p>
-        The dashboard components will appear here as we migrate them piece by piece.
-      </p>
+      <AirTempCard />
 
-      <div id="dashboard-root"></div>
+      {/* More cards will go here as we convert them */}
     </main>
   );
 }
