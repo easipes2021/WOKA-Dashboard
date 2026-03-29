@@ -25,9 +25,11 @@ jobs:
         working-directory: ./woka-next
         run: npm install
 
+      
       - name: Build Next.js site
         working-directory: ./woka-next
         run: npm run build
+
 
       - name: Export debug — list build output
         working-directory: ./woka-next
@@ -39,7 +41,8 @@ jobs:
         run: |
           rm -rf docs/woka-next
           mkdir -p docs/woka-next
-          cp -a woka-next/out/. docs/woka-next/
+          cp -R woka-next/out/* docs/woka-next/
+          cp -R woka-next/out/.* docs/woka-next/ 2>/dev/null || true
 
       - name: Commit preview site
         run: |
