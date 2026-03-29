@@ -24,6 +24,7 @@ const CONFIG = {
     sskpSite: "07195430",
     hwy16Site: "07195400",
     savoySite: "07194800",
+      osageSite: "07195000",
 
     params: {
       stage: "00065",
@@ -660,6 +661,15 @@ async function loadSavoyData() {
   });
 }
 
+async function loadOsageData() {
+  return loadFlowCard({
+    site: CONFIG.usgs.osageSite,
+    currentId: "osageCurrent",
+    timeId: "osageTime"
+  });
+}
+
+
 /* -----------------------------------
    11) APP LIFECYCLE
 ----------------------------------- */
@@ -712,7 +722,8 @@ async function refreshAllData() {
       loadLakeFrancisData(),
       loadSSKPData(),
       loadHwy16Data(),
-      loadSavoyData()
+      loadSavoyData(),
+      loadOsageData()
     ]);
   } finally {
     state.refreshInProgress = false;
