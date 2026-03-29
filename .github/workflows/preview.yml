@@ -20,6 +20,12 @@ jobs:
         with:
           node-version: 18
 
+      - name: Debug folder
+        run: |
+          ls -R .
+          cd woka-next || echo "FAILED TO ENTER FOLDER"
+          ls -R .
+      
       - name: Install dependencies
         run: |
           cd woka-next
